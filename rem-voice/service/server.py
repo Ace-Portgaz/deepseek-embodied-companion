@@ -15,7 +15,8 @@ def speak(engine, text, timeout=25):
     if not isinstance(text,str) or not 1 <= len(text.strip()) <= 160:
         raise ValueError('invalid_text')
     # Keep each autoregressive segment below the engine's semantic-token cap.
-    sentences = re.findall(r'[^。！？!?\n]+[。！？!?\n]*|[。！？!?\n]+',text.strip())
+    boundary=r'。！？!?\n，,；;' if getattr(engine,'language','ja')=='zh' else r'。！？!?\n'
+    sentences = re.findall(r'[^'+boundary+r']+['+boundary+r']*|['+boundary+r']+',text.strip())
     pieces = []
     for sentence in sentences:
         for start in range(0,len(sentence),45):
@@ -28,7 +29,16 @@ def speak(engine, text, timeout=25):
         remaining = timeout-(time.monotonic()-began)
         if remaining <= 0:
             raise TimeoutError('deadline')
-        pcm,_ = engine.synthesize(piece, timeout=remaining)
+        for attempt in range(3):
+            remaining=timeout-(time.monotonic()-began)
+            if remaining<=0:raise TimeoutError('deadline')
+            try:
+                pcm,_ = engine.synthesize(piece, timeout=remaining)
+                break
+            except Exception as error:
+                # Sampling may emit EOS immediately. Retry that empty result only,
+                # within the original deadline; never replay completed audio.
+                if str(error)!='Premature semantic stop' or attempt==2:raise
         if not pcm or len(pcm)%2:
             raise ValueError('invalid_audio')
         if i:
@@ -72,10 +82,16 @@ class Handler(BaseHTTPRequestHandler):
         try:
             pcm,seconds=speak(self.server.engine,data['text'])
             self.answer(200,pcm,'application/octet-stream',{'X-Rem-Rate':16000,
-                'X-Rem-Engine':'rem-ja-genie-v1','X-Rem-Seconds':seconds})
+                'X-Rem-Engine':os.environ.get('REM_VOICE_PROFILE','dafeiyu-zh-sparkle-v1'),'X-Rem-Seconds':seconds})
         except (BrokenPipeError,ConnectionResetError):
             pass
-        except Exception:
+        except Exception as error:
+            # Operational category only: never print dialogue or exception text.
+            safe={'Synthesis deadline exceeded','Incomplete semantic sequence','Premature semantic stop',
+                  'Empty semantic sequence','Invalid or late audio','Chinese phoneme alignment mismatch',
+                  'Chinese tokenizer alignment mismatch'}
+            reason=str(error) if str(error) in safe else 'other'
+            print('SYNTHESIS_FAILED '+type(error).__name__+' '+reason,flush=True)
             self.answer(503,b'synthesis_unavailable')
         finally:
             self.server.busy.release()
@@ -103,7 +119,7 @@ def main():
     os.umask(0o077)
     with make_server(path,engine) as server:
         path.chmod(0o600)
-        print('Rem voice ready (private Unix socket)',flush=True)
+        print('Dafeiyu voice ready (private Unix socket)',flush=True)
         server.serve_forever()
 
 if __name__=='__main__':

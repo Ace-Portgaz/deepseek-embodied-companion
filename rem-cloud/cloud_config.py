@@ -53,8 +53,8 @@ def validate(settings, credentials, cloud=True):
     missing = [key for key in SECRET_FIELDS if not credentials.get(key, "").strip()]
     if not settings.get("tts_speaker", "").strip():
         missing.append("tts_speaker")
-    if settings.get("asr_language") != "ja-JP":
-        missing.append("asr_language must be ja-JP")
+    if settings.get("asr_language") not in {"ja-JP", "zh-CN"}:
+        missing.append("asr_language must be ja-JP or zh-CN")
     if settings.get("tts_resource") not in {"seed-tts-2.0", "seed-icl-2.0"}:
         missing.append("tts_resource must be seed-tts-2.0 or seed-icl-2.0")
     rate = settings.get("speech_rate", -5)
@@ -90,6 +90,7 @@ def build_config(settings, credentials, prompt):
     problems = validate(settings, credentials)
     if problems:
         raise ValueError("Missing or invalid fields: " + ", ".join(problems))
+    chinese = settings['asr_language'] == 'zh-CN'
     return {
         "server": {
             "ip": "0.0.0.0", "port": 8000, "http_port": 8003,
@@ -105,7 +106,7 @@ def build_config(settings, credentials, prompt):
                             "Intent": "nointent"},
         "ASR": {"RemVolcASR": {"type": "rem_volc_asr", "api_key": credentials["volc_asr_api_key"],
                                  "resource_id": settings["asr_resource"], "enable_multilingual": True,
-                                 "language": "ja-JP", "end_window_size": 600, "output_dir": "tmp/"}},
+                                 "language": settings['asr_language'], "end_window_size": 600, "output_dir": "tmp/"}},
         "LLM": {"RemDeepSeek": {"type": "openai", "url": "https://api.deepseek.com",
                                   "api_key": credentials["deepseek_api_key"],
                                   "model_name": settings["deepseek_model"], "thinking": "off",
@@ -114,19 +115,20 @@ def build_config(settings, credentials, prompt):
         "TTS": {"RemVolcTTS": {"type": "rem_volc_tts", "api_key": credentials["volc_tts_api_key"],
                                  "resource_id": settings["tts_resource"], "speaker": settings["tts_speaker"],
                                  "ws_url": "wss://openspeech.bytedance.com/api/v3/tts/bidirection",
-                                 "enable_ws_reuse": False, "language": "日语", "output_dir": "tmp/",
+                                 "enable_ws_reuse": False, "language": "中文" if chinese else "日语", "output_dir": "tmp/",
                                  "audio_params": {"speech_rate": settings["speech_rate"], "loudness_rate": 0},
-                                 "additions": {"explicit_language": "ja"}}},
+                                 "additions": {"explicit_language": "zh-cn" if chinese else "ja"}}},
         # Administrator-owned aliases; device messages cannot select another memory.
         # Leave empty until the new device has its own authenticated enrollment.
         "Memory": {"RemMemory": {"type": "rem_memory",
+                                  "language": settings['asr_language'],
                                   "identity_aliases": settings.get("memory_identity_aliases", {})}},
         "prompt": prompt, "prompt_template": "rem-prompt-template.txt",
         "phone_devices": credentials.get("phone_devices", {}),
         "delete_audio": True, "enable_greeting": False,
         "enable_wakeup_words_response_cache": False, "enable_stop_tts_notify": False,
         "close_connection_no_voice_time": 90, "end_prompt": {"enable": False},
-        "system_error_response": "ごめんなさい。今、接続が少し不安定です。もう一度話しかけてもらえますか。",
+        "system_error_response": "刚才连接有点不稳定，可以再说一次吗？" if chinese else "ごめんなさい。今、接続が少し不安定です。もう一度話しかけてもらえますか。",
         "exit_commands": ["会話を終了", "おやすみ", "退出"],
         "mcp_endpoint": None, "plugins": {}, "context_providers": [], "voiceprint": None,
         "manager-api": {"url": "", "secret": ""},

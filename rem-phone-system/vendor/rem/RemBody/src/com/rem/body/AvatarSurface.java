@@ -14,7 +14,7 @@ public final class AvatarSurface extends View {
     public AvatarSurface(Context context) {
         super(context);
         density = getResources().getDisplayMetrics().density;
-        setContentDescription("雷姆形象位置，Live2D 模型尚未接入");
+        setContentDescription("大肥鱼形象位置，Live2D 模型尚未接入");
     }
 
     @Override protected void onDraw(Canvas canvas) {
@@ -25,7 +25,7 @@ public final class AvatarSurface extends View {
         paint.setColor(Color.rgb(162, 216, 242));
         paint.setTextAlign(Paint.Align.CENTER);
         paint.setTextSize(34 * density);
-        canvas.drawText("レム", cx, cy, paint);
+        canvas.drawText("大肥鱼", cx, cy, paint);
         paint.setTextSize(13 * density);
         paint.setColor(Color.rgb(168, 182, 196));
         canvas.drawText("等待接入角色模型", cx, cy + 35 * density, paint);

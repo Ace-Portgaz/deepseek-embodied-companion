@@ -20,8 +20,8 @@ def test_deepseek(settings, credentials):
         return "请先填写并保存 DeepSeek API 密钥。"
     payload = {"model": settings["deepseek_model"], "stream": False,
                "thinking": {"type": "disabled"}, "max_tokens": 160,
-               "messages": [{"role": "system", "content": (ROOT / "prompts/rem_ja.txt").read_text(encoding="utf-8")},
-                            {"role": "user", "content": "今日は少し疲れました。短く返事をしてください。"}]}
+               "messages": [{"role": "system", "content": (ROOT / "prompts/dafeiyu_zh.txt").read_text(encoding="utf-8")},
+                            {"role": "user", "content": "今天有点累，请简短地回复我。"}]}
     request = urllib.request.Request("https://api.deepseek.com/chat/completions",
                                      data=json.dumps(payload).encode(), method="POST",
                                      headers={"Authorization": "Bearer " + credentials["deepseek_api_key"],
@@ -41,18 +41,18 @@ def test_deepseek(settings, credentials):
 def main():
     settings, credentials = load_private()
     window = tk.Tk()
-    window.title("雷姆 · 云端连接设置")
+    window.title("大肥鱼 · 云端连接设置")
     window.geometry("760x740")
     frame = ttk.Frame(window, padding=22)
     frame.pack(fill="both", expand=True)
-    ttk.Label(frame, text="雷姆的连接设置", font=("Microsoft YaHei UI", 18)).pack(anchor="w")
+    ttk.Label(frame, text="大肥鱼的连接设置", font=("Microsoft YaHei UI", 18)).pack(anchor="w")
     ttk.Label(frame, text="密钥只保存到这台电脑；不需要发到聊天中。保存不会调用付费接口。\n配置文件采用本地明文保存，请勿分享 .private 或 runtime 文件夹。",
               wraplength=700).pack(anchor="w", pady=(8, 14))
     fields = {}
     labels = [("deepseek_api_key", "DeepSeek API 密钥", True),
               ("volc_asr_api_key", "火山语音识别 API Key", True),
               ("volc_tts_api_key", "火山声音合成 API Key", True),
-              ("tts_speaker", "日语音色 ID（尚未选定可留空）", False),
+              ("tts_speaker", "中文音色 ID（尚未选定可留空）", False),
               ("public_host", "云端域名或公网 IP（尚未配置可留空）", False),
               ("device_id", "开发板设备 ID / MAC（稍后核对）", False)]
     for key, label, secret in labels:
@@ -66,7 +66,7 @@ def main():
     ttk.Combobox(frame, state="readonly", textvariable=voice_kind,
                  values=["seed-tts-2.0", "seed-icl-2.0"]).pack(anchor="w")
     ttk.Label(frame, text="seed-tts-2.0：平台音色；seed-icl-2.0：已经创建好的复刻音色。", wraplength=700).pack(anchor="w")
-    status = tk.StringVar(value="可以先只保存 DeepSeek 密钥，验证日语人设。")
+    status = tk.StringVar(value="可以先只保存 DeepSeek 密钥，验证中文人设。")
     output = tk.Text(frame, height=6, wrap="word", state="disabled")
     buttons = ttk.Frame(frame)
     buttons.pack(fill="x", pady=12)
@@ -96,7 +96,7 @@ def main():
     def test():
         save()
         test_button.configure(state="disabled")
-        status.set("正在测试 DeepSeek 日语回答……")
+        status.set("正在测试 DeepSeek 中文回答……")
         def work():
             result = test_deepseek(dict(settings), dict(credentials))
             def finish():
@@ -110,10 +110,10 @@ def main():
         threading.Thread(target=work, daemon=True).start()
 
     ttk.Button(buttons, text="保存到本机", command=save).pack(side="left")
-    test_button = ttk.Button(buttons, text="测试日语回答（少量 API 费用）", command=test)
+    test_button = ttk.Button(buttons, text="测试中文回答（少量 API 费用）", command=test)
     test_button.pack(side="left", padx=12)
     ttk.Label(frame, textvariable=status, wraplength=700).pack(anchor="w", pady=5)
-    ttk.Label(frame, text="测试仅发送雷姆人设和固定句子“今天有点累”，不上传你的文件或历史聊天。", wraplength=700).pack(anchor="w")
+    ttk.Label(frame, text="测试仅发送大肥鱼人设和固定句子“今天有点累”，不上传你的文件或历史聊天。", wraplength=700).pack(anchor="w")
     output.pack(fill="both", expand=True)
     window.mainloop()
 

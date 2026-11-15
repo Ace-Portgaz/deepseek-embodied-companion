@@ -1,5 +1,5 @@
 [Unit]
-Description=Rem Japanese voice companion
+Description=Dafeiyu Mandarin embodied companion
 Wants=network-online.target
 After=network-online.target
 StartLimitIntervalSec=120

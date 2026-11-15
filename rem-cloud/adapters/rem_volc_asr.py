@@ -49,7 +49,9 @@ def decode_response(data):
 
 class ASRProvider(UpstreamASR):
     def __init__(self, config, delete_audio_file):
-        cfg = dict(config, enable_multilingual=True, language="ja-JP")
+        from character_language import checked
+        self.dialogue_language = checked(config.get('language', 'zh-CN'))
+        cfg = dict(config, enable_multilingual=True, language=self.dialogue_language)
         super().__init__(cfg, delete_audio_file)
         self.api_key = cfg["api_key"]
 
@@ -61,7 +63,7 @@ class ASRProvider(UpstreamASR):
     def construct_request(self, reqid):
         return {"user": {"uid": "rem-device"},
                 "audio": {"format": "pcm", "codec": "raw", "rate": 16000,
-                          "bits": 16, "channel": 1, "language": "ja-JP"},
+                          "bits": 16, "channel": 1, "language": self.dialogue_language},
                 "request": {"model_name": "bigmodel", "enable_itn": True,
                             "enable_punc": True, "show_utterances": True,
                             "result_type": "single", "end_window_size": self.end_window_size}}

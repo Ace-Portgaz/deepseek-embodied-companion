@@ -3,6 +3,8 @@ import { DRAWING as DEFAULT_DRAWING, REGIONS as DEFAULT_REGIONS } from './view-c
 import { ExpressionLayer } from './expression-layer.js';
 import { SpeechBob } from './speech-bob.js';
 import { GestureHandoff } from './gesture-handoff.js';
+import { installCubismColorCompatibility } from './cubism-color-compat.js';
+import { hitMeshes } from './body-hit-test.js';
 
 const base = new URL('./', import.meta.url);
 let dependencyPromise;
@@ -31,6 +33,7 @@ async function dependencies() {
     }
     await loadScript('pixi-6.5.10.min.js', () => !!window.PIXI);
     await loadScript('pixi-live2d-display-0.4.0.min.js', () => !!window.PIXI?.live2d?.Live2DModel);
+    installCubismColorCompatibility(window.PIXI);
   })().catch(error => { dependencyPromise = undefined; throw error; });
   return dependencyPromise;
 }
@@ -77,16 +80,52 @@ export async function createViewer({ canvas, modelUrl, onReady, onError, onStats
     model = await PIXI.live2d.Live2DModel.from(absoluteModelURL.href, {
       autoUpdate: false, autoInteract: false, motionPreload: 'ALL', idleMotionGroup: 'Idle',
     });
+    // Some author atlases are 8192px even when their folder is named "4096".
+    // Fit only the GPU upload to this device's limit; preserve original assets
+    // and normalized UVs. This runs before the first WebGL texture binding.
+    const maxTextureSize = app.renderer.gl.getParameter(app.renderer.gl.MAX_TEXTURE_SIZE);
+    for (let index=0;index<model.textures.length;index++) {
+      const texture=model.textures[index], baseTexture=texture.baseTexture;
+      const width=baseTexture.realWidth,height=baseTexture.realHeight;
+      if (width<=maxTextureSize && height<=maxTextureSize) continue;
+      const source=baseTexture.resource?.source;
+      if (!source) throw new Error('模型贴图无法适配设备纹理尺寸');
+      const scale=Math.min(maxTextureSize/width,maxTextureSize/height);
+      const atlas=document.createElement('canvas');
+      atlas.width=Math.max(1,Math.floor(width*scale));
+      atlas.height=Math.max(1,Math.floor(height*scale));
+      const context=atlas.getContext('2d');
+      context.imageSmoothingEnabled=true;context.imageSmoothingQuality='high';
+      context.drawImage(source,0,0,atlas.width,atlas.height);
+      const fitted=PIXI.Texture.from(atlas);
+      fitted.baseTexture.mipmap=PIXI.MIPMAP_MODES.OFF;
+      fitted.baseTexture.scaleMode=PIXI.SCALE_MODES.LINEAR;
+      fitted.baseTexture.wrapMode=PIXI.WRAP_MODES.CLAMP;
+      model.textures[index]=fitted;texture.destroy(true);
+    }
     app.stage.addChild(model);
     const internal = model.internalModel;
     // The SDK's default 256px clipping mask becomes visibly stepped in a face
     // close-up even when the source atlas is 8K. Set it before the first draw.
-    const maxTextureSize = app.renderer.gl.getParameter(app.renderer.gl.MAX_TEXTURE_SIZE);
     const requestedClippingMaskSize = Math.min(1024, maxTextureSize);
     internal.renderer.setClippingMaskBufferSize?.(requestedClippingMaskSize);
     const clippingMaskSize = internal.renderer.getClippingMaskBufferSize?.() ?? null;
     const core = internal.coreModel;
     const raw = core.getModel();
+    const alphaCanvas=document.createElement('canvas');alphaCanvas.width=alphaCanvas.height=1;
+    const alphaContext=alphaCanvas.getContext('2d',{willReadFrequently:true});
+    function opaqueMesh(i,a,b,c,x,y){
+      const p=raw.drawables.vertexPositions[i],uv=raw.drawables.vertexUvs[i];
+      const ax=p[a*2],ay=p[a*2+1],bx=p[b*2],by=p[b*2+1],cx=p[c*2],cy=p[c*2+1];
+      const area=(bx-ax)*(cy-ay)-(by-ay)*(cx-ax);
+      const u=((bx-x)*(cy-y)-(by-y)*(cx-x))/area,v=((cx-x)*(ay-y)-(cy-y)*(ax-x))/area,w=1-u-v;
+      const tx=uv[a*2]*u+uv[b*2]*v+uv[c*2]*w,ty=1-(uv[a*2+1]*u+uv[b*2+1]*v+uv[c*2+1]*w);
+      const texture=model.textures[raw.drawables.textureIndices[i]].baseTexture,source=texture.resource?.source;
+      if(!source||!alphaContext)return true;
+      alphaContext.clearRect(0,0,1,1);
+      alphaContext.drawImage(source,Math.max(0,Math.min(texture.realWidth-1,tx*texture.realWidth)),Math.max(0,Math.min(texture.realHeight-1,ty*texture.realHeight)),1,1,0,0,1,1);
+      return alphaContext.getImageData(0,0,1,1).data[3]>30;
+    }
     const wardrobe = {step(){},destroy(){},getViewRegion(){return null;}};
     const rawParams = raw.parameters;
     const defaults = Float32Array.from(rawParams.defaultValues);
@@ -368,6 +407,17 @@ export async function createViewer({ canvas, modelUrl, onReady, onError, onStats
       getParameters() { return descriptors.map(p => ({ ...p, value: lastRenderedParameters[p.id] })); },
       getDrawableState() { return { positions: Array.from(raw.drawables.vertexPositions, v => Array.from(v)), opacities: Array.from(raw.drawables.opacities) }; },
       getDrawableTopology() { return { ids: Array.from(raw.drawables.ids), indices: Array.from(raw.drawables.indices, v => Array.from(v)) }; },
+      hitBody(clientX,clientY,regions) {
+        if(destroyed||!Number.isFinite(clientX)||!Number.isFinite(clientY))return null;
+        const rect=canvas.getBoundingClientRect();if(!rect.width||!rect.height)return null;
+        const gl=app.renderer.gl,pixel=new Uint8Array(4),framebuffer=gl.getParameter(gl.FRAMEBUFFER_BINDING);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+        gl.readPixels(Math.floor((clientX-rect.left)/rect.width*canvas.width),Math.floor((rect.bottom-clientY)/rect.height*canvas.height),1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer);if(pixel[3]<30)return null;
+        const point=model.toModelPosition(new PIXI.Point((clientX-rect.left)*app.screen.width/rect.width,(clientY-rect.top)*app.screen.height/rect.height));
+        return hitMeshes((point.x-internal.originalWidth/2)/internal.pixelsPerUnit,
+          -(point.y-internal.originalHeight/2)/internal.pixelsPerUnit,raw.drawables,regions,opaqueMesh);
+      },
       getModelCounts() { return { parameters: raw.parameters.count, drawables: raw.drawables.count,
         vertices: Array.from(raw.drawables.vertexCounts).reduce((sum, value) => sum + value, 0),
         triangles: Array.from(raw.drawables.indexCounts).reduce((sum, value) => sum + value / 3, 0) }; },

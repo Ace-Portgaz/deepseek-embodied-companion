@@ -68,4 +68,4 @@ Recovery 中 `Apply update → Apply from ADB` 等待传输；传输退出码不
 REM_BUILD_TARGET=RemBody bash rem-phone-system/scripts/build-rem.sh
 ```
 
-同包名 `com.rem.body`、同签名更新可保留配置；内核、DTBO 和厂商驱动变更仍需要相应镜像或 OTA。当前手机基础 ROM 安装后，视觉和对话功能通过后续同签名组件更新到了 v37。早期留存 ROM 不自动包含这些后续更新；公开源码包含后续实现，重新构建前仍需补齐外部资源。
+同包名 `com.rem.body`、同签名更新可保留配置；内核、DTBO 和厂商驱动变更仍需要相应镜像或 OTA。当前手机基础 ROM 安装后，视觉和对话功能通过后续同签名组件更新到了 v42 / `0.6.1-dafeiyu-touch`。早期留存 ROM 不自动包含这些后续更新；公开源码包含后续实现，重新构建前仍需补齐外部资源。

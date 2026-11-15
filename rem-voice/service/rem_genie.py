@@ -1,8 +1,9 @@
-"""Japanese-only Rem inference. Algorithm adapted from High-Logic/Genie-TTS
+"""Offline character inference. Algorithm adapted from High-Logic/Genie-TTS
 (MIT, copyright 2025 High_Logic; see vendor_genie/LICENSE).
 Reference-only encoders run offline. No Torch, network, or audio device required.
 """
 import json
+import os
 from pathlib import Path
 import time
 import numpy as np
@@ -16,8 +17,16 @@ class SynthesisError(RuntimeError):
     pass
 
 class RemGenie:
-    def __init__(self, model_dir, threads=2):
+    def __init__(self, model_dir, threads=2, language=None):
+        self.language = language or os.environ.get('REM_VOICE_LANGUAGE', 'zh')
+        if self.language not in {'ja', 'zh'}:
+            raise ValueError('Unsupported speech language')
         model_dir = Path(model_dir)
+        profile_path=model_dir/'profile.json'
+        if profile_path.exists():
+            profile=json.loads(profile_path.read_text(encoding='utf-8'))
+            if profile.get('language')!=self.language:
+                raise ValueError('Configured language differs from voice model profile')
         options = ort.SessionOptions()
         options.intra_op_num_threads = threads
         options.inter_op_num_threads = 1
@@ -25,6 +34,10 @@ class RemGenie:
         options.add_session_config_entry('session.intra_op.allow_spinning', '0')
         options.add_session_config_entry('session.inter_op.allow_spinning', '0')
         options.log_severity_level = 3
+        self.chinese_bert = None
+        if self.language == 'zh':
+            from chinese_bert import ChineseBert
+            self.chinese_bert = ChineseBert(model_dir/'chinese-bert',options)
         self.sessions = {}
         for name in ('t2s_encoder', 't2s_first_stage_decoder', 't2s_stage_decoder', 'vits'):
             self.sessions[name] = ort.InferenceSession(str(model_dir/f'{name}_fp32.onnx'),
@@ -37,11 +50,16 @@ class RemGenie:
         if not isinstance(text,str) or not 1 <= len(text.strip()) <= 160:
             raise ValueError('Text must contain 1 to 160 characters')
         start = time.monotonic()
-        phones = japanese_to_phones('。'+text.strip())
+        if self.language == 'zh':
+            from vendor_genie.Chinese.ChineseG2P import chinese_to_phones
+            normalized, _, phones, word2ph = chinese_to_phones('。'+text.strip())
+            bert = self.chinese_bert.features(normalized,word2ph)
+        else:
+            phones = japanese_to_phones('。'+text.strip())
+            bert = np.zeros((len(phones),1024),dtype=np.float32)
         if not phones:
-            raise ValueError('No Japanese phonemes')
+            raise ValueError('No speech phonemes')
         sequence = np.array([phones],dtype=np.int64)
-        bert = np.zeros((len(phones),1024),dtype=np.float32)
         ref = self.reference
         x, prompts = self.sessions['t2s_encoder'].run(None,dict(
             ref_seq=ref['ref_seq'],ref_bert=ref['ref_bert'],ssl_content=ref['ssl_content'],
@@ -58,8 +76,10 @@ class RemGenie:
             if stop:
                 stopped = True
                 break
-        if not stopped or idx < 1:
+        if not stopped:
             raise SynthesisError('Incomplete semantic sequence')
+        if idx < 1:
+            raise SynthesisError('Premature semantic stop')
         y[0,-1] = 0
         semantic = np.expand_dims(y[:,-idx:],axis=0)
         eos = np.where(semantic >= 1024)
@@ -75,7 +95,8 @@ class RemGenie:
         audio = soxr.resample(audio,32000,RATE,quality='HQ')
         pcm = (np.clip(audio,-1,1)*32767).astype('<i2').tobytes()
         return pcm, {'complete_seconds':round(time.monotonic()-start,3),
-                     'duration_seconds':len(pcm)/(RATE*2),'engine':'rem-ja-genie-v1'}
+                     'duration_seconds':len(pcm)/(RATE*2),
+                     'engine':os.environ.get('REM_VOICE_PROFILE','dafeiyu-zh-sparkle-v1' if self.language=='zh' else 'dafeiyu-ja-genie-v1')}
 
 if __name__ == '__main__':
     import argparse

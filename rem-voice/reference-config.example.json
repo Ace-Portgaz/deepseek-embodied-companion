@@ -1,4 +1,5 @@
 {
   "audio_path": "/absolute/path/to/your/reference.wav",
-  "text": "ここに、参照音声と完全に一致する日本語を書いてください。"
+  "text": "这里填写与中文参考录音完全一致的文字。",
+  "language": "all_zh"
 }

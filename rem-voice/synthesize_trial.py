@@ -25,6 +25,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--reference', default=str(ROOT / 'reference/reference-config.json'))
 parser.add_argument('--text', default=None)
 parser.add_argument('--output', default=None)
+parser.add_argument('--text-language', choices=['all_ja','all_zh'], default='all_zh')
+parser.add_argument('--gpt-weights', default=None)
+parser.add_argument('--sovits-weights', default=None)
+parser.add_argument('--report', default='trial-report.json')
 args = parser.parse_args()
 
 import numpy as np
@@ -41,26 +45,26 @@ settings = {'custom': {
     'device': 'cuda', 'is_half': True, 'version': 'v2ProPlus',
     'bert_base_path': str(weights / 'chinese-roberta-wwm-ext-large'),
     'cnhuhbert_base_path': str(weights / 'chinese-hubert-base'),
-    't2s_weights_path': str(weights / 's1v3.ckpt'),
-    'vits_weights_path': str(weights / 'v2Pro/s2Gv2ProPlus.pth'),
+    't2s_weights_path': args.gpt_weights or str(weights / 's1v3.ckpt'),
+    'vits_weights_path': args.sovits_weights or str(weights / 'v2Pro/s2Gv2ProPlus.pth'),
 }}
 started = time.monotonic()
 pipeline = TTS(TTS_Config(settings))
 loaded = time.monotonic() - started
 print('MODEL_READY', round(loaded, 2), 'seconds', flush=True)
-samples = [(args.output or 'rem-custom.wav', args.text)] if args.text else [
-    ('rem-greeting-ja.wav', 'おかえりなさい。今日もお疲れさまでした。レムは、あなたのそばにいます。'),
-    ('rem-wave-ja.wav', 'はい、今、手を振ってくれましたね。ちゃんと見えていますよ。'),
-    ('rem-gentle-ja.wav', '無理はしないでくださいね。少し休んで、お話ししましょう。'),
+samples = [(args.output or 'dafeiyu-custom.wav', args.text)] if args.text else [
+    ('dafeiyu-greeting-zh.wav', '你好呀，我是大肥鱼。今天想聊些什么？'),
+    ('dafeiyu-wave-zh.wav', '你刚才朝我挥手啦，我看见了。'),
+    ('dafeiyu-gentle-zh.wav', '那先歇一会儿，想说话的时候就叫我。'),
 ]
 (ROOT / 'outputs').mkdir(parents=True, exist_ok=True)
 results = []
 for filename, text in samples:
     begin = time.monotonic()
     chunks = list(pipeline.run({
-        'text': text, 'text_lang': 'all_ja',
+        'text': text, 'text_lang': args.text_language,
         'ref_audio_path': ref['audio_path'], 'prompt_text': ref['text'],
-        'prompt_lang': 'all_ja', 'top_k': 5, 'top_p': 1,
+        'prompt_lang': ref.get('language', 'all_zh'), 'top_k': 5, 'top_p': 1,
         'temperature': 0.8, 'text_split_method': 'cut3', 'batch_size': 1,
         'speed_factor': 1.0, 'seed': 42, 'parallel_infer': True,
         'repetition_penalty': 1.35, 'return_fragment': False,
@@ -72,6 +76,7 @@ for filename, text in samples:
     if audio.size == 0 or not np.isfinite(audio).all() or np.max(np.abs(audio.astype(float))) == 0:
         raise RuntimeError('Empty or invalid audio')
     output = ROOT / 'outputs' / filename
+    output.parent.mkdir(parents=True, exist_ok=True)
     sf.write(str(output), audio, rate, subtype='PCM_16')
     elapsed = time.monotonic() - begin
     duration = len(audio) / rate
@@ -90,5 +95,5 @@ report = {'engine': 'GPT-SoVITS', 'version': 'v2ProPlus',
           'peak_allocated_vram_bytes': torch.cuda.max_memory_allocated(),
           'samples': results, 'production_phone_changed': False,
           'production_cloud_changed': False, 'paid_api_calls': 0}
-(ROOT / 'outputs/trial-report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+(ROOT / 'outputs' / args.report).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
 print('TRIAL_COMPLETE', flush=True)

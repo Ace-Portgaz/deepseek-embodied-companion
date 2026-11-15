@@ -12,7 +12,7 @@ from speech_budget import BudgetExceeded
 class CloneTests(unittest.TestCase):
     def response(self,pcm=bytes(3200),**headers):
         response=Mock(status=200)
-        values={'X-Rem-Rate':'16000','X-Rem-Engine':'rem-ja-genie-v1',
+        values={'X-Rem-Rate':'16000','X-Rem-Engine':'dafeiyu-zh-sparkle-v1',
             'Content-Type':'application/octet-stream','Content-Length':str(len(pcm))}
         values.update(headers)
         response.getheader.side_effect=lambda key,default=None:values.get(key,default)
@@ -24,8 +24,18 @@ class CloneTests(unittest.TestCase):
         with patch.object(phone_clone,'UnixConnection',return_value=conn):
             audio,timing=phone_clone.synthesize_clone('こんにちは。')
         self.assertEqual(len(audio),3200)
-        self.assertEqual(timing['engine'],'rem-ja-genie-v1')
+        self.assertEqual(timing['engine'],'dafeiyu-zh-sparkle-v1')
         conn.close.assert_called_once()
+
+    def test_selected_mandarin_profile_cannot_silently_return_previous_voice(self):
+        profile='dafeiyu-zh-sparkle-v1';conn=Mock()
+        with patch.dict('os.environ',{'REM_VOICE_PROFILE':profile}),patch.object(phone_clone,'UnixConnection',return_value=conn):
+            conn.getresponse.return_value=self.response(**{'X-Rem-Engine':profile})
+            audio,timing=phone_clone.synthesize_clone('看见你挥手啦。')
+            self.assertEqual(timing['engine'],profile)
+            self.assertEqual(len(audio),3200)
+            conn.getresponse.return_value=self.response(**{'X-Rem-Engine':'previous-voice-profile'})
+            with self.assertRaises(phone_clone.CloneUnavailable):phone_clone.synthesize_clone('看见你挥手啦。')
 
     def test_incomplete_oversize_or_wrong_rate_rejected(self):
         for response in [self.response(**{'Content-Length':'3202'}),

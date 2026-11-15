@@ -23,12 +23,12 @@ import java.util.Set;
 
 /** Standalone staging component. The containing app supplies played-audio amplitude. */
 public final class BustRemView extends WebView {
-    public interface Listener { void ready(); void failed(String message); }
+    public interface Listener { void ready(); void failed(String message); void touched(String region); }
     private static final Set<String> AXES=new HashSet<>(Arrays.asList("JOY","SHY","AFFECTION","SAD","IRRITATED","SURPRISED","SLEEPY","CURIOUS"));
     private static final String ROOT="rem-bust-v4/";
     private boolean ready,resumed,released;
     private Listener listener;
-    private String outfit="lpk-original";
+    private String outfit="deepseek-chan-user";
     private final JSONObject tones=new JSONObject();
     private RemMotionSensor motionSensor;
     private boolean motionEnabled=true,motionActive;
@@ -62,6 +62,9 @@ public final class BustRemView extends WebView {
     /** Structured local geometry only; the web renderer never receives camera frames. */
     public void setVisualTarget(double x,double y,boolean active){mainThread();if(!Double.isFinite(x)||!Double.isFinite(y))throw new IllegalArgumentException("Visual target");if(ready)js("RemModel.setVisualTarget("+x+","+y+","+active+")");}
     public void respondToObservation(String event){mainThread();if(!event.matches("ARRIVED|LEFT|NOD|SHAKE|WAVE|APPROACH|RETREAT"))throw new IllegalArgumentException("Observation event");if(ready)js("RemModel.respondToObservation("+JSONObject.quote(event)+")");}
+    public void respondToTouch(String region){mainThread();if(TouchPolicy.label(region)==null)throw new IllegalArgumentException("Body region");if(ready)js("RemModel.respondToTouch("+JSONObject.quote(region)+")");}
+    public void respondToReply(String text){mainThread();if(ready&&text!=null)js("RemModel.respondToReply("+JSONObject.quote(text)+")");}
+    public void chooseAuthorAction(String name){mainThread();if(name==null||name.length()>40)throw new IllegalArgumentException("Author action");if(ready)js("RemModel.chooseAuthorAction("+JSONObject.quote(name)+")");}
     /** Enabled by default; starts only while ready, resumed, attached and visible. */
     public void setMotionEnabled(boolean enabled){mainThread();motionEnabled=enabled;updateMotion();}
     public boolean isMotionAvailable(){return motionSensor!=null&&motionSensor.available();}
@@ -87,6 +90,7 @@ public final class BustRemView extends WebView {
     private final class Bridge {
         @JavascriptInterface public void ready(String inventory){post(()->{if(released)return;ready=true;select();js("RemModel.setTone("+tones+");RemModel.setPaused("+(!resumed)+");RemModel.setMotionSensitivity("+motionSensitivity+")");updateMotion();if(listener!=null)listener.ready();});}
         @JavascriptInterface public void failed(String message){post(()->{if(!released&&listener!=null)listener.failed(message);});}
+        @JavascriptInterface public void touched(String region){if(TouchPolicy.label(region)!=null)post(()->{if(!released&&ready&&resumed&&listener!=null)listener.touched(region);});}
     }
     private static JSONObject weights(Map<String,Double> values){JSONObject result=new JSONObject();try{for(Map.Entry<String,Double> e:values.entrySet()){Double v=e.getValue();if(!AXES.contains(e.getKey())||v==null||!Double.isFinite(v)||v<0||v>1)throw new IllegalArgumentException("Emotion weight");result.put(e.getKey(),v);}}catch(Exception e){throw new IllegalArgumentException(e);}return result;}
     private static void mainThread(){if(Looper.myLooper()!=Looper.getMainLooper())throw new IllegalStateException("Use the Android main thread");}

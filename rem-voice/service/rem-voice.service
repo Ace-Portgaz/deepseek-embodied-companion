@@ -1,5 +1,5 @@
 [Unit]
-Description=Rem private Japanese ONNX speech
+Description=Dafeiyu private Mandarin ONNX speech
 After=local-fs.target
 StartLimitIntervalSec=120
 StartLimitBurst=3
@@ -12,6 +12,8 @@ WorkingDirectory=/opt/rem-voice/current/service
 Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=REM_VOICE_MODELS=/opt/rem-voice/current/models
+Environment=REM_VOICE_LANGUAGE=zh
+Environment=REM_VOICE_PROFILE=dafeiyu-zh-sparkle-v1
 Environment=OMP_NUM_THREADS=2
 Environment=OPENBLAS_NUM_THREADS=1
 ExecStart=/opt/rem-voice/venv/bin/python server.py
@@ -20,7 +22,7 @@ RuntimeDirectoryMode=0700
 UMask=0077
 Restart=on-failure
 RestartSec=10
-MemoryMax=2300M
+MemoryMax=2800M
 MemorySwapMax=128M
 CPUQuota=150%
 Nice=10

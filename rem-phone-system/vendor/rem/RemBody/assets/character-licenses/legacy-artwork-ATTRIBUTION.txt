@@ -1,0 +1,16 @@
+Rem / Re:Zero character and supplied reference illustrations belong to their respective rights holders.
+This v4 package contains 13 newly generated reference-based artworks and rigs, plus a separate lpk-original choice containing the byte-identical author runtime verified in the earlier 8812 delivery. The newly generated artwork is not the author's original costume artwork. The original author directory remains untouched.
+Original author model: 蕾姆, Steam Workshop item 2217310220 (Akina); source config names BigJJ. Bilibili reference: BV1LA411n7QL (深井玑). Original MOC, texture, physics and five expression files are retained unchanged; no original-model authorship is claimed.
+https://steamcommunity.com/sharedfiles/filedetails/?id=2217310220
+https://www.bilibili.com/video/BV1LA411n7QL/
+The third-party character/model artwork is not covered by the software MIT/GPL notices.
+
+Artwork: built-in image_gen, one three-state source sheet per user-supplied outfit reference. Exact prompts and source-image paths are recorded in art/generation-records.json. Raw generation files are preserved byte-for-byte.
+Model export: psd2live 5526f2e16b57e5f83d34f33730d6fa26d8bc8695 with local Live2D agent-kit manifest integration. Engine is GPL-3.0; its license and notices are retained. Engine executable, JDK and Android SDK are not bundled. Recipes and generated PSD/CMO3/runtime outputs are included.
+Kit source: https://github.com/Ariakage/live2d-agent-kit
+
+Runtime: Live2D Cubism Core Web 5.1.0, copyright Live2D Inc. Separate proprietary terms apply; Core is not MIT/GPL. Original headers retained.
+Core source: https://cubism.live2d.com/sdk-web/core/05/live2dcubismcore.min.js
+PixiJS 6.5.10 and pixi-live2d-display 0.4.0 retain their MIT notices. Cubism Framework code within the display bundle retains its separate Live2D terms.
+Test speech is Microsoft Huihui Desktop system speech, not Rem voice or the model author's voice.
+This working package does not grant ownership of third-party character, reference-art or SDK rights.

@@ -41,7 +41,7 @@ class PhoneBoundaryTests(unittest.IsolatedAsyncioTestCase):
             response=await self.client.get('/status',headers=headers)
             self.assertEqual(response.status,401)
         response=await self.client.get('/status',headers=self.headers)
-        self.assertEqual((await response.json())['language'],'ja-JP')
+        self.assertEqual((await response.json())['language'],'zh-CN')
 
     async def test_persona_roundtrip_and_invalid_payload(self):
         for value in (None,[],{'style':0},{'style':'x'*2001},{'style':'x','memory':'overwrite'}):
@@ -80,7 +80,7 @@ class PhoneBoundaryTests(unittest.IsolatedAsyncioTestCase):
         memory_module=types.ModuleType('memory');memory_module.MemoryProvider=Mock(return_value=memory)
         speech=types.ModuleType('phone_speech');speech.recognize=AsyncMock(return_value={'transcript':'こんにちは'})
         speech.synthesize=Mock(return_value=(bytes(3200),{}))
-        completion=Mock(return_value=types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content='こんにちは。レムです。'))]))
+        completion=Mock(return_value=types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content='你好，我是大肥鱼。'))]))
         self.api.llm=types.SimpleNamespace(model_name='fake',client=types.SimpleNamespace(chat=types.SimpleNamespace(completions=types.SimpleNamespace(create=completion))))
         payload={'id':'test-identifier-1234','audio':base64.b64encode(bytes(3200)).decode(),'events':[{'event':'WAVE','age_ms':100}]}
         with patch.dict(sys.modules,{'phone_speech':speech,'core.providers.memory.rem_memory.rem_memory':memory_module}),patch.object(phone_api,'ensure_available') as budget,patch.object(Path,'read_text',return_value='base persona'),patch('cloud_config.private_write'):
@@ -91,7 +91,7 @@ class PhoneBoundaryTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await second.json(),result)
             self.assertEqual(result['visual_events_received'],1)
             messages=completion.call_args.kwargs['messages']
-            self.assertIn('手を振った',messages[-2]['content'])
+            self.assertIn('挥手打招呼',messages[-2]['content'])
             self.assertEqual(messages[-1],{'role':'user','content':'こんにちは'})
             speech.recognize.assert_awaited_once();speech.synthesize.assert_called_once();budget.assert_called_once()
             memory.init_memory.assert_called_once_with('phone-test',self.api.llm)

@@ -12,6 +12,19 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import phone_speech
 
 class SpeechResourceTests(unittest.TestCase):
+    def test_chinese_fallback_request_and_invalid_language_before_billing(self):
+        body=('data:'+json.dumps({'data':base64.b64encode(bytes(3200)).decode()})+'\n'+
+              'data:'+json.dumps({'code':20000000})+'\n').encode()
+        with patch.dict('os.environ',{'REM_PHONE_TTS':''}),patch.object(phone_speech.urllib.request,'build_opener') as opener,patch.object(phone_speech,'reserve') as reserve:
+            opener.return_value.open.return_value=io.BytesIO(body)
+            phone_speech.synthesize('fake','你好','test',language='zh-CN')
+            payload=json.loads(opener.return_value.open.call_args.args[0].data)
+            self.assertEqual(json.loads(payload['req_params']['additions'])['explicit_language'],'zh-cn')
+            reserve.assert_called_once_with(characters=2)
+            reserve.reset_mock();opener.reset_mock()
+            with self.assertRaises(ValueError):phone_speech.synthesize('fake','你好','test',language='invalid')
+            reserve.assert_not_called();opener.assert_not_called()
+
     def test_clone_requires_explicit_resource_and_keeps_shared_budget(self):
         audio=bytes(3200)
         body=('data:'+json.dumps({'data':base64.b64encode(audio).decode(),'code':0})+'\n'+

@@ -70,3 +70,28 @@ class SpeechBudgetTests(unittest.TestCase):
             with patch.dict(os.environ, REM_TEST_BUDGET_FILE=str(p)):
                 with self.assertRaises(BudgetExceeded):
                     ensure_available()
+
+    def test_one_day_topup_preserves_usage_and_expires_at_china_midnight(self):
+        with tempfile.TemporaryDirectory() as folder:
+            p=Path(folder)/'usage.json'
+            p.write_text(json.dumps({'characters':1000,'seconds':100,'paused':False,
+                'limits':{'characters':1000,'seconds':600},'period':'day','date':'2026-11-15',
+                'one_day_extra':{'date':'2026-11-15','characters':1000}}))
+            with patch.dict(os.environ,REM_TEST_BUDGET_FILE=str(p)),patch('speech_budget.datetime') as clock:
+                clock.now.return_value=datetime(2026,11,15,23,59,tzinfo=CHINA_TIME)
+                reserve(characters=1000)
+                with self.assertRaises(BudgetExceeded):reserve(characters=1)
+                state=json.loads(p.read_text());self.assertEqual(state['characters'],2000)
+                self.assertEqual(state['limits'],{'characters':1000,'seconds':600})
+                clock.now.return_value=datetime(2026,11,16,0,0,tzinfo=CHINA_TIME)
+                reserve(characters=1000)
+                with self.assertRaises(BudgetExceeded):reserve(characters=1)
+
+    def test_one_day_topup_does_not_raise_recognition_limit(self):
+        with tempfile.TemporaryDirectory() as folder:
+            p=Path(folder)/'usage.json'
+            p.write_text(json.dumps({'characters':1,'seconds':600,'limits':{'characters':1000,'seconds':600},
+                'period':'day','date':datetime.now(CHINA_TIME).date().isoformat(),
+                'one_day_extra':{'date':datetime.now(CHINA_TIME).date().isoformat(),'characters':1000}}))
+            with patch.dict(os.environ,REM_TEST_BUDGET_FILE=str(p)):
+                with self.assertRaises(BudgetExceeded):reserve(seconds=.1)

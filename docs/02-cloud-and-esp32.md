@@ -25,7 +25,7 @@ python rem-cloud/setup_app.py
 
 窗口写入 `rem-cloud/.private/`。也可按 `settings.example.json` 格式在本机私密目录手工配置，凭据字段为 `deepseek_api_key`、`volc_asr_api_key`、`volc_tts_api_key`。`with_device_secrets()` 生成稳定的设备初始化密钥和服务鉴权密钥，不要每次部署重新生成。
 
-`public_host` 只填域名或公网 IPv4，不带协议；`device_id` 填自有 ESP32 MAC。选择账号实际支持的 DeepSeek 模型和支持日语的火山音色。示例中的模型名是工程所用配置，并非保证所有账号都可用。
+`public_host` 只填域名或公网 IPv4，不带协议；`device_id` 填自有 ESP32 MAC。选择账号实际支持的 DeepSeek 模型和支持中文的火山音色。示例中的模型名是工程所用配置，并非保证所有账号都可用。
 
 ```bash
 python rem-cloud/prepare.py --runtime
@@ -61,8 +61,10 @@ sudo systemctl status rem-cloud --no-pager
 1. 读取芯片、Flash 大小、固件版本、NVS 分区和 MAC，完整备份 Flash 与 NVS 到私密目录。
 2. 用自有设备信息准备 OTA / WSS 配置，先检查服务端 TLS 与未授权请求拒绝。
 3. 只修改所需服务器地址并回读校验，再重启设备。
-4. 短句验证收音、日语识别和播放；异常时恢复备份中的配置。
+4. 短句验证收音、中文识别和播放；异常时恢复备份中的配置。
 
 旧版固件曾因清除兼容字段而反复重启。**不要直接删除旧 `mqtt` / `httpConfig` 相关字段**；字段存在与是否实际走旧服务是两个问题，应结合串口日志和服务器请求确认。本仓库的 `deploy/prepare_device.py` 是配置生成辅助，不是适用于任意开发板的自动刷写器。原始备份与具体设备 NVS 不公开。
 
-ESP32 当前仍使用原唤醒方式与火山日语音色；本次 Genie 音色只接入手机端。
+ESP32 当前仍使用原唤醒方式与火山中文音色；本次 Genie 音色只接入手机端。
+
+管理员可在账本中设置 `one_day_extra: {"date":"YYYY-MM-DD","characters":1000}`，只对指定日期增加合成额度，不改变次日常规上限或已用计数。若当天已经暂停，确认新的有效额度后再解除 `paused`。手机对话遇到限额返回 429 并显示明确提示；不要删除账本绕过限制。

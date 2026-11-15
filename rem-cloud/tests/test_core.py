@@ -47,7 +47,7 @@ asr = load_adapter("rem_volc_asr", "core.providers.asr.doubao_stream", "ASRProvi
 class ConfigTests(unittest.TestCase):
     def setUp(self):
         self.settings = json.loads((ROOT / "settings.example.json").read_text())
-        self.settings.update(public_host="rem.example.com", device_id="aa:bb:cc:dd:ee:ff", tts_speaker="test-only")
+        self.settings.update(public_host="companion.example.com", device_id="aa:bb:cc:dd:ee:ff", tts_speaker="test-only")
         self.keys = with_device_secrets({"deepseek_api_key": "fake-ds", "volc_asr_api_key": "fake-asr", "volc_tts_api_key": "fake-tts"})
     def test_default_is_not_runnable_without_keys_and_voice(self):
         self.assertIn("deepseek_api_key", validate({}, {}))
@@ -58,12 +58,12 @@ class ConfigTests(unittest.TestCase):
         self.assertTrue(cfg["server"]["auth"]["enabled"])
         self.assertTrue(cfg["server"]["websocket"].startswith("wss://"))
         self.assertEqual(cfg["selected_module"]["LLM"], "RemDeepSeek")
-        self.assertEqual(cfg["ASR"]["RemVolcASR"]["language"], "ja-JP")
-        self.assertEqual(cfg["TTS"]["RemVolcTTS"]["additions"]["explicit_language"], "ja")
+        self.assertEqual(cfg["ASR"]["RemVolcASR"]["language"], "zh-CN")
+        self.assertEqual(cfg["TTS"]["RemVolcTTS"]["additions"]["explicit_language"], "zh-cn")
     def test_untrusted_configuration_cannot_inject_caddy_environment(self):
-        self.settings["public_host"] = "rem.example.com\nOTHER=bad"
+        self.settings["public_host"] = "companion.example.com\nOTHER=bad"
         self.assertTrue(validate(self.settings, self.keys))
-        self.settings["public_host"] = "rem.example.com"
+        self.settings["public_host"] = "companion.example.com"
         self.settings["device_id"] = "*"
         self.assertTrue(validate(self.settings, self.keys))
     def test_tokens_are_stable_across_saves(self):
@@ -121,10 +121,17 @@ class ProtocolTests(unittest.TestCase):
     def test_request_is_japanese_and_has_no_secret_in_body(self):
         provider = object.__new__(asr.ASRProvider)
         provider.end_window_size = 600
+        provider.dialogue_language = 'ja-JP'
         payload = provider.construct_request("request-test")
         self.assertEqual(payload["audio"]["language"], "ja-JP")
         self.assertEqual(payload["request"]["model_name"], "bigmodel")
         self.assertNotIn("app", payload)
+
+    def test_chinese_request_uses_mandarin(self):
+        provider = object.__new__(asr.ASRProvider)
+        provider.end_window_size = 600
+        provider.dialogue_language = 'zh-CN'
+        self.assertEqual(provider.construct_request('test')['audio']['language'],'zh-CN')
 
 
 class MemoryTests(unittest.TestCase):

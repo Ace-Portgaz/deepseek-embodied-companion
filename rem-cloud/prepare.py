@@ -8,6 +8,7 @@ from cloud_config import ROOT, UPSTREAM_COMMIT, load_private, private_write, val
 
 
 def assemble():
+    settings, _ = load_private()
     upstream = ROOT.parent / "upstream/xiaozhi-esp32-server"
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=upstream, text=True).strip()
     if head != UPSTREAM_COMMIT:
@@ -27,9 +28,10 @@ def assemble():
         "adapters/privacy_logger.py": "config/logger.py",
         "adapters/disabled_plugins.py": "plugins_func/loadplugins.py",
         "adapters/rem_audit.py": "rem_audit.py",
-        "prompts/rem_ja.txt": "rem-persona.txt",
+        ("prompts/dafeiyu_zh.txt" if settings['asr_language']=='zh-CN' else "prompts/dafeiyu_ja.txt"): "rem-persona.txt",
         "prompts/agent-base-prompt.txt": "rem-prompt-template.txt",
         "cloud_config.py": "cloud_config.py",
+        "character_language.py": "character_language.py",
         "speech_budget.py": "speech_budget.py",
         "entrypoint.py": "rem-entrypoint.py",
         "phone_api.py": "phone_api.py",

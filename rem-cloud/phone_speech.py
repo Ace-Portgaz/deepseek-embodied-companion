@@ -6,7 +6,9 @@ class SafeFailure(Exception): pass
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs): return None
 
-def synthesize(key, text, speaker, *, resource_id='seed-tts-2.0', speech_rate=-5):
+def synthesize(key, text, speaker, *, resource_id='seed-tts-2.0', speech_rate=-5, language='zh-CN'):
+    from character_language import tts_language
+    explicit_language=tts_language(language)
     if not text or len(text) > 160:
         raise SafeFailure("Test text must contain between 1 and 160 characters")
     if resource_id not in {'seed-tts-2.0','seed-icl-2.0'}:
@@ -23,7 +25,7 @@ def synthesize(key, text, speaker, *, resource_id='seed-tts-2.0', speech_rate=-5
     body = {"user": {"uid": "rem-smoke-test"}, "req_params": {
         "text": text, "speaker": speaker,
         "audio_params": {"format": "pcm", "sample_rate": RATE, "speech_rate": speech_rate},
-        "additions": json.dumps({"explicit_language": "ja"}),
+        "additions": json.dumps({"explicit_language": explicit_language}),
     }}
     request = urllib.request.Request(
         "https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse",
@@ -82,13 +84,15 @@ def audio_frame(pcm, final=False):
     return bytes([0x11, 0x22 if final else 0x20, 0x01, 0x00]) + len(payload).to_bytes(4, "big") + payload
 
 
-async def recognize(key, pcm):
+async def recognize(key, pcm, language='zh-CN'):
+    from character_language import checked
+    checked(language)
     import websockets
     import inspect
     reserve(seconds=len(pcm) / RATE / 2)
     request = {"user": {"uid": "rem-smoke-test"},
                "audio": {"format": "pcm", "codec": "raw", "rate": RATE,
-                         "bits": 16, "channel": 1, "language": "ja-JP"},
+                         "bits": 16, "channel": 1, "language": language},
                "request": {"model_name": "bigmodel", "enable_itn": True,
                            "enable_punc": True, "show_utterances": True}}
     headers = {"X-Api-Key": key, "X-Api-Resource-Id": "volc.seedasr.sauc.duration",
@@ -128,6 +132,6 @@ async def recognize(key, pcm):
                 sender.cancel()
                 await asyncio.gather(sender, return_exceptions=True)
         if not text:
-            raise SafeFailure("ASR returned no Japanese transcript")
+            raise SafeFailure("ASR returned no transcript")
         return {"transcript": text, "after_audio_seconds": round(time.monotonic()-last_sent[0], 3)}
 

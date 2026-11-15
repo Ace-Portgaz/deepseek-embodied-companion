@@ -42,7 +42,14 @@ def reserve(*, characters=0, seconds=0, check_only=False):
             raise BudgetExceeded('Approved speech allowance reached')
         new_chars = used['characters'] + characters
         new_seconds = used['seconds'] + seconds
-        limits = used.get('limits', {'characters': 200, 'seconds': 60})
+        limits = dict(used.get('limits', {'characters': 200, 'seconds': 60}))
+        # A dated, explicit top-up never changes the next day's normal allowance.
+        bonus = used.get('one_day_extra')
+        if bonus and used.get('period') == 'day' and bonus.get('date') == used['date']:
+            amount = bonus.get('characters')
+            if not isinstance(amount, int) or isinstance(amount, bool) or amount < 0:
+                raise ValueError('Invalid dated speech allowance')
+            limits['characters'] += amount
         if (new_chars > limits['characters'] or new_seconds > limits['seconds']
                 or (check_only and (new_chars >= limits['characters'] or new_seconds >= limits['seconds']))):
             _write(path, dict(used, paused=True))
@@ -54,6 +61,6 @@ def reserve(*, characters=0, seconds=0, check_only=False):
 async def close_at_limit(conn):
     try:
         await conn.websocket.send(json.dumps({'type': 'stt', 'session_id': conn.session_id,
-            'text': '音声の利用上限に達しました。'}))
+            'text': '今天的语音额度已用完。'}))
     finally:
         await conn.websocket.close(code=1008, reason='Approved speech allowance reached')

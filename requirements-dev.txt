@@ -1,3 +1,7 @@
-# Offline protocol/unit tests only; no neural model dependencies.
+# Offline protocol/unit tests and the packaged Mandarin text frontend.
 aiohttp==3.14.5
 websockets==14.2
+numpy==1.26.4
+pypinyin==0.55.0
+jieba==0.42.1
+g2pM==0.1.2.5

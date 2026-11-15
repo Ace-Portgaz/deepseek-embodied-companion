@@ -4,10 +4,11 @@ import json
 from pathlib import Path
 import sys
 import types
+import argparse
 
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / 'Genie-TTS/src/genie_tts'
-OUT = ROOT / 'models/rem-ja-genie-v1'
+OUT = ROOT / 'models/dafeiyu-zh-sparkle-v1'
 CACHE = ROOT / 'cache/genie-conversion'
 PRETRAINED = ROOT / 'GPT-SoVITS-v2Pro/GPT_SoVITS/pretrained_models'
 
@@ -16,6 +17,12 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 if __name__ == '__main__':
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--gpt',default=str(PRETRAINED/'s1v3.ckpt'))
+    parser.add_argument('--sovits',default=str(PRETRAINED/'v2Pro/s2Gv2ProPlus.pth'))
+    parser.add_argument('--output',default=str(OUT))
+    parser.add_argument('--cache',default=str(CACHE))
+    args=parser.parse_args();OUT=Path(args.output);CACHE=Path(args.cache)
     # Conversion does not need the audio runtime, resource downloads, or server.
     package = types.ModuleType('genie_tts')
     package.__path__ = [str(SOURCE)]
@@ -28,8 +35,8 @@ if __name__ == '__main__':
     torch.set_num_threads(2)
     OUT.mkdir(parents=True, exist_ok=True)
     CACHE.mkdir(parents=True, exist_ok=True)
-    gpt = str(PRETRAINED / 's1v3.ckpt')
-    sovits = str(PRETRAINED / 'v2Pro/s2Gv2ProPlus.pth')
+    gpt = args.gpt
+    sovits = args.sovits
     v2 = SOURCE / 'Data/v2'
     pp = SOURCE / 'Data/v2ProPlus'
     stages = [

@@ -80,3 +80,8 @@ rem-phone-system/vendor/rem/RemBody/assets/**/preview/vendor/
 *.ogg
 .DS_Store
 Thumbs.db
+
+# Mandarin training data and artifacts stay private.
+datasets/
+training/
+!rem-phone-system/vendor/rem/RemBody/assets/rem-bust-v4/preview/package.json

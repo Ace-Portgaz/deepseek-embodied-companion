@@ -13,6 +13,7 @@ import java.io.*;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import com.rem.body.character.TouchPolicy;
 
 /** Explicit short microphone turns. TLS-verified requests; provider keys never live on the phone. */
 public final class CloudVoice {
@@ -45,18 +46,40 @@ public final class CloudVoice {
                 status(g,"正在听懂并准备回答…");
                 JSONObject response=request("turn",payload,g);
                 if(g!=generation)return;
-                main.post(()->{if(g==generation)listener.reply(response.optString("heard"),response.optString("reply"));});
-                byte[] audio=Base64.decode(response.getString("audio"),Base64.DEFAULT);
-                if(response.getInt("sample_rate")!=16000||audio.length>1000000||audio.length%2!=0)throw new IOException("audio");
-                play(audio,g);status(g,"点击说话 · DeepSeek / 日语语音");
-            }catch(Exception e){if(g==generation)status(g,"连接或语音失败（"+safeError(e)+"）· 可重试");}
+                deliver(response,g,null);
+            }catch(Exception e){if(g==generation)failure(g,e,false);}
             finally{
                 AudioRecord r=recorder;if(r!=null){try{r.stop();}catch(Exception ignored){}r.release();recorder=null;}
                 if(g==generation){recording=false;busy=false;main.post(()->{if(g==generation)listener.speech(0,false);});}
             }
         });
     }
+    public void touch(String region,JSONArray events){
+        if(busy||TouchPolicy.label(region)==null)return;busy=true;long g=++generation;
+        status(g,"轻触"+TouchPolicy.label(region)+" · 正在准备回应…");
+        io.execute(()->{
+            try{
+                if(g!=generation)return;
+                JSONObject payload=new JSONObject();payload.put("id",UUID.randomUUID().toString());
+                payload.put("text",TouchPolicy.prompt(region));payload.put("events",events);
+                JSONObject response=request("turn",payload,g);
+                if(g==generation)deliver(response,g,"轻触"+TouchPolicy.label(region));
+            }catch(Exception e){if(g==generation)failure(g,e,true);}
+            finally{if(g==generation){busy=false;main.post(()->{if(g==generation)listener.speech(0,false);});}}
+        });
+    }
+    private void deliver(JSONObject response,long g,String interaction)throws Exception{
+        main.post(()->{if(g==generation)listener.reply(interaction==null?response.optString("heard"):interaction,response.optString("reply"));});
+        byte[] audio=Base64.decode(response.getString("audio"),Base64.DEFAULT);
+        if(response.getInt("sample_rate")!=16000||audio.length>1000000||audio.length%2!=0)throw new IOException("audio");
+        play(audio,g);status(g,"点击说话或轻触形象 · DeepSeek / 中文语音");
+    }
     private static String safeError(Exception e){String m=e.getMessage();return m!=null&&m.matches("HTTP_[0-9]{3}")?m:e.getClass().getSimpleName();}
+    private void failure(long g,Exception e,boolean interaction){
+        if("daily_speech_limit".equals(e.getMessage())){status(g,"今日语音额度已用完 · 明日恢复，表情动作仍可使用");return;}
+        if("slow_down".equals(e.getMessage())||"busy".equals(e.getMessage())){status(g,"上一轮还在处理，请稍等片刻");return;}
+        status(g,(interaction?"互动回复暂时失败（":"连接或语音失败（")+safeError(e)+"）· 可稍后再试");
+    }
     public void finish(){recording=false;}
     public void cancel(){generation++;recording=false;busy=false;HttpsURLConnection c=connection;if(c!=null)c.disconnect();AudioTrack p=player;if(p!=null)try{p.pause();p.flush();}catch(Exception ignored){}listener.speech(0,false);}
     public void close(){cancel();io.shutdown();}
@@ -70,7 +93,11 @@ public final class CloudVoice {
             c.setRequestProperty("Authorization","Bearer "+config.getString("token"));c.setRequestProperty("X-Rem-Device",config.getString("device"));
             if(body!=null){byte[] bytes=body.toString().getBytes("UTF-8");c.setRequestMethod("POST");c.setDoOutput(true);c.setFixedLengthStreamingMode(bytes.length);c.setRequestProperty("Content-Type","application/json");try(OutputStream out=c.getOutputStream()){out.write(bytes);}}
             if(g!=generation)throw new IOException("cancelled");
-            int code=c.getResponseCode();if(code!=200)throw new IOException("HTTP_"+code);
+            int code=c.getResponseCode();if(code!=200){
+                String reason="";try(InputStream error=c.getErrorStream()){if(error!=null)reason=new String(read(error,256),"UTF-8").trim();}catch(IOException ignored){}
+                if(code==429&&(reason.equals("daily_speech_limit")||reason.equals("slow_down")||reason.equals("busy")))throw new IOException(reason);
+                throw new IOException("HTTP_"+code);
+            }
             try(InputStream in=c.getInputStream()){return new JSONObject(new String(read(in,2000000),"UTF-8"));}
         }finally{c.disconnect();if(connection==c)connection=null;}
     }

@@ -21,6 +21,7 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import com.rem.body.character.BustRemView;
+import com.rem.body.character.TouchPolicy;
 import com.rem.body.vision.ObservationEngine;
 import com.rem.body.vision.ObservationPolicy;
 import java.io.FileDescriptor;
@@ -46,6 +47,8 @@ public final class RemActivity extends Activity {
     private long captionUntil;
     private int eventCount;
     private CloudVoice voice;private TextView voiceStatus;private Button talk;
+    private final TouchPolicy touchPolicy=new TouchPolicy();
+    private int touchCount;private String lastTouch="none";private boolean touchEnabled=true;
     private final java.util.ArrayList<JSONObject> recentEvents=new java.util.ArrayList<>();
     private final java.util.EnumMap<ObservationPolicy.Event,Integer> eventCounts=new java.util.EnumMap<>(ObservationPolicy.Event.class);
 
@@ -53,29 +56,30 @@ public final class RemActivity extends Activity {
         super.onCreate(saved);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         observationWanted=getPreferences(0).getBoolean("observation_enabled",true);
+        touchEnabled=getPreferences(0).getBoolean("touch_enabled",true);
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);root.setPadding(dp(10),dp(20),dp(10),dp(22));
         root.setBackgroundColor(Color.rgb(12,22,34));
-        TextView title=new TextView(this);title.setText("レム");title.setTextSize(23);title.setTextColor(Color.WHITE);
-        title.setPadding(0,dp(10),0,dp(6));title.setContentDescription("雷姆，长按打开维护入口");
+        TextView title=new TextView(this);title.setText("大肥鱼");title.setTextSize(23);title.setTextColor(Color.WHITE);
+        title.setPadding(0,dp(10),0,dp(6));title.setContentDescription("大肥鱼，长按打开维护入口");
         title.setOnLongClickListener(v->{showMaintenance();return true;});root.addView(title);
         stage=new FrameLayout(this);root.addView(stage,new LinearLayout.LayoutParams(-1,0,1));
         caption=new TextView(this);caption.setTextColor(Color.WHITE);caption.setTextSize(17);caption.setGravity(Gravity.CENTER);caption.setMinHeight(dp(36));
         root.addView(caption,new LinearLayout.LayoutParams(-1,-2));
-        status=new TextView(this);status.setTextColor(Color.rgb(181,202,220));status.setTextSize(12);status.setGravity(Gravity.CENTER);status.setMinHeight(dp(32));status.setText("正在准备雷姆…");
+        status=new TextView(this);status.setTextColor(Color.rgb(181,202,220));status.setTextSize(12);status.setGravity(Gravity.CENTER);status.setMinHeight(dp(32));status.setText("正在准备大肥鱼…");
         root.addView(status,new LinearLayout.LayoutParams(-1,-2));
         toggle=new Button(this);toggle.setOnClickListener(v->{
             if(state.mode()==BodyState.Mode.MICROPHONE_TEST||state.mode()==BodyState.Mode.CAMERA_PREVIEW){stopHardware();showModel();maybeObserve();}
             else {observationWanted=!observationWanted;getPreferences(0).edit().putBoolean("observation_enabled",observationWanted).apply();
-                if(observationWanted)maybeObserve();else{stopHardware();status.setText("观察已暂停 · 摄像头已关闭");caption.setText("ここにいますよ。");}}
+                if(observationWanted)maybeObserve();else{stopHardware();status.setText("观察已暂停 · 摄像头已关闭");caption.setText("哼，我就在这里呀。");}}
             updateButton();
         });root.addView(toggle,new LinearLayout.LayoutParams(-1,-2));
         voiceStatus=new TextView(this);voiceStatus.setTextColor(Color.WHITE);voiceStatus.setTextSize(12);voiceStatus.setGravity(Gravity.CENTER);
-        voiceStatus.setText("点击说话 · DeepSeek / 日语语音");root.addView(voiceStatus,new LinearLayout.LayoutParams(-1,-2));
+        voiceStatus.setText("点击说话或轻触形象 · DeepSeek / 中文语音");root.addView(voiceStatus,new LinearLayout.LayoutParams(-1,-2));
         talk=new Button(this);talk.setText("开始说话");root.addView(talk,new LinearLayout.LayoutParams(-1,-2));
         voice=new CloudVoice(this,main,new CloudVoice.Listener(){
             @Override public void state(String text){voiceStatus.setText(text);talk.setText(voice.recording()?"结束说话":voice.busy()?"取消本轮":"开始说话");}
-            @Override public void reply(String heard,String reply){captionUntil=SystemClock.elapsedRealtime()+60000;caption.setText(reply);voiceStatus.setText("你："+heard);talk.setText("停止播放");}
+            @Override public void reply(String heard,String reply){captionUntil=SystemClock.elapsedRealtime()+60000;caption.setText(reply);voiceStatus.setText("你："+heard);talk.setText("停止播放");if(character!=null)character.respondToReply(reply);}
             @Override public void speech(double level,boolean playing){if(character!=null)character.setSpeech(level,playing);if(!playing&&!voice.busy())talk.setText("开始说话");}
             @Override public void settings(String value){if(value==null){voiceStatus.setText("人格设置已保存，下轮对话生效");return;}showPersonality(value);}
         });
@@ -88,12 +92,22 @@ public final class RemActivity extends Activity {
         });
         character=new BustRemView(this);character.setMotionEnabled(false);
         character.setListener(new BustRemView.Listener(){
-            @Override public void ready(){status.setText("雷姆已就绪");maybeObserve();}
+            @Override public void ready(){status.setText("大肥鱼已就绪");maybeObserve();}
             @Override public void failed(String message){modelFailed=true;stopHardware();status.setText("形象加载失败 · 长按标题进入维护");android.util.Log.e("RemCharacter",message);}
+            @Override public void touched(String region){handleTouch(region);}
         });
         showModel();updateButton();setContentView(root);
     }
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
+    private void handleTouch(String region){
+        if(!touchEnabled||maintenanceOpen||modelFailed||character.getParent()!=stage)return;
+        if(!touchPolicy.accept(region,SystemClock.elapsedRealtime(),voice.busy(),resumed))return;
+        lastTouch=region;touchCount++;character.respondToTouch(region);
+        captionUntil=SystemClock.elapsedRealtime()+30000;
+        status.setText("轻触："+TouchPolicy.label(region));
+        if(!voice.configured()){voiceStatus.setText("本地动作已回应 · 云端尚未登记");return;}
+        voice.touch(region,recentVisionEvents());
+    }
     private JSONArray recentVisionEvents(){
         JSONArray events=new JSONArray();long now=SystemClock.elapsedRealtime();
         for(JSONObject event:recentEvents)try{long age=now-event.getLong("time");if(age<=15000){JSONObject item=new JSONObject();item.put("event",event.getString("event"));item.put("age_ms",age);events.put(item);}}catch(Exception ignored){}
@@ -108,11 +122,11 @@ public final class RemActivity extends Activity {
     private void immersive(){getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY|View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LAYOUT_STABLE);}
     @Override public void onWindowFocusChanged(boolean focus){super.onWindowFocusChanged(focus);if(focus)immersive();}
     @Override protected void onResume(){super.onResume();resumed=true;state.resume();immersive();if(character!=null)character.resumeCharacter();maybeObserve();}
-    @Override protected void onPause(){resumed=false;if(voice!=null){voice.cancel();voiceStatus.setText("点击说话 · DeepSeek / 日语语音");}state.pause();stopHardware();if(maintenance!=null)maintenance.dismiss();if(character!=null)character.pauseCharacter();super.onPause();}
+    @Override protected void onPause(){resumed=false;if(voice!=null){voice.cancel();voiceStatus.setText("点击说话 · DeepSeek / 中文语音");}state.pause();stopHardware();if(maintenance!=null)maintenance.dismiss();if(character!=null)character.pauseCharacter();super.onPause();}
     @Override protected void onDestroy(){if(voice!=null)voice.close();stopHardware();if(character!=null){stage.removeAllViews();character.releaseCharacter();}super.onDestroy();}
     @Override public void onBackPressed(){if(voice!=null)voice.cancel();observationWanted=false;getPreferences(0).edit().putBoolean("observation_enabled",false).apply();stopHardware();showModel();status.setText("观察已暂停 · 摄像头已关闭");updateButton();}
 
-    private void updateButton(){if(toggle!=null)toggle.setText(state.mode()==BodyState.Mode.MICROPHONE_TEST||state.mode()==BodyState.Mode.CAMERA_PREVIEW?"停止检查，返回雷姆":observationWanted?"暂停观察":"开启观察");}
+    private void updateButton(){if(toggle!=null)toggle.setText(state.mode()==BodyState.Mode.MICROPHONE_TEST||state.mode()==BodyState.Mode.CAMERA_PREVIEW?"停止检查，返回大肥鱼":observationWanted?"暂停观察":"开启观察");}
     private void stopHardware(){
         state.stop();
         if(vision!=null){vision.close();lastVision=vision.diagnostics();vision=null;}
@@ -131,7 +145,7 @@ public final class RemActivity extends Activity {
             @Override public void result(ObservationPolicy.Result result){
                 if(!state.current(generation))return;
                 character.setVisualTarget(result.x,result.y,true);
-                if(SystemClock.elapsedRealtime()>captionUntil){caption.setText(result.present?"ちゃんと、見ていますよ。":"ここで待っていますね。");status.setText(result.present?"前置观察中 · 已看到人脸":"前置观察中 · 等待你进入视野");}
+                if(SystemClock.elapsedRealtime()>captionUntil){caption.setText(result.present?"看见你啦。才没有一直等你呢。":"你先忙，我在这里待一会儿。");status.setText(result.present?"前置观察中 · 已看到人脸":"前置观察中 · 等待你进入视野");}
                 if(!result.events.isEmpty())respond(result.events.get(result.events.size()-1));
             }
             @Override public void events(java.util.List<ObservationPolicy.Event> events){if(state.current(generation)&&!events.isEmpty())respond(events.get(events.size()-1));}
@@ -145,13 +159,13 @@ public final class RemActivity extends Activity {
         Integer count=eventCounts.get(event);eventCounts.put(event,count==null?1:count+1);
         String line,label;
         switch(event){
-            case ARRIVED:line="あ、来てくれたんですね。";label="进入视野";break;
-            case LEFT:line="ここで待っていますね。";label="离开视野";break;
-            case NOD:line="うん、うん。";label="点头";break;
-            case SHAKE:line="そうじゃないんですね。";label="摇头";break;
-            case WAVE:line="はい、見えていますよ！";label="挥手";break;
-            case APPROACH:line="近くに来てくれたんですね。";label="靠近";break;
-            default:line="ここからでも、見えますよ。";label="退远";
+            case ARRIVED:line="哼，你回来啦。";label="进入视野";break;
+            case LEFT:line="你先忙，我在这里待一会儿。";label="离开视野";break;
+            case NOD:line="嗯嗯，看见你点头啦。";label="点头";break;
+            case SHAKE:line="原来不是这样呀。";label="摇头";break;
+            case WAVE:line="看见你挥手啦，我也和你打个招呼。";label="挥手";break;
+            case APPROACH:line="靠得这么近，是想和我说悄悄话吗？";label="靠近";break;
+            default:line="退远一点我也能看见你呀。";label="退远";
         }
         caption.setText(line);status.setText("前置观察中 · "+label+" · 本地动作回应");
     }
@@ -164,14 +178,25 @@ public final class RemActivity extends Activity {
         if(voice!=null)voice.cancel();
         maintenanceOpen=true;stopHardware();showModel();status.setText("维护中 · 观察已暂停");
         maintenance=new AlertDialog.Builder(this).setTitle("维护")
-            .setItems(new String[]{"Wi-Fi 设置","音量设置","录音并回放 3 秒（不上传）","打开后置摄像头（不上传）","打开前置摄像头（镜像，不上传）","观察状态","关闭硬件检查","性格与说话习惯（云端）"},(d,which)->{
+            .setItems(new String[]{"Wi-Fi 设置","音量设置","录音并回放 3 秒（不上传）","打开后置摄像头（不上传）","打开前置摄像头（镜像，不上传）","观察状态","关闭硬件检查","性格与说话习惯（云端）","模型来源与许可","表情与动作（本地预览）",touchEnabled?"关闭点击语音互动":"开启点击语音互动"},(d,which)->{
                 switch(which){case 0:openSettings(Settings.ACTION_WIFI_SETTINGS);break;case 1:openSettings(Settings.ACTION_SOUND_SETTINGS);break;
                     case 2:probeAudio();break;case 3:previewCamera(CameraCharacteristics.LENS_FACING_BACK);break;case 4:previewCamera(CameraCharacteristics.LENS_FACING_FRONT);break;
                     case 5:status.setText("最近动作："+lastEvent+"；本地回应 "+eventCount+" 次\n"+(voice.configured()?"云端已登记 · 点击说话":"手机尚未登记到云端"));break;
                     case 7:voice.personality(null);break;
+                    case 8:new AlertDialog.Builder(this).setTitle("大肥鱼模型来源").setMessage("DeepSeek-chan 全身模型\n绘画与 PSD 拆分：Kamiya Ryoko／神宫凉子\nLive2D：霓虹猫_NeonNeko\n来源：用户提供的原作者公开模型包\n保留原作者使用条款。仅用于本机角色展示；不公开重新分发完整模型。\n原模型和贴图未改动；已适配本机眼神跟随与嘴型。").setPositiveButton("知道了",null).show();break;
+                    case 9:main.post(this::showAuthorActions);break;
+                    case 10:touchEnabled=!touchEnabled;getPreferences(0).edit().putBoolean("touch_enabled",touchEnabled).apply();voiceStatus.setText(touchEnabled?"点击形象可收到云端语音回应":"点击语音互动已关闭");break;
                     default:stopHardware();showModel();}
-            }).setNegativeButton("返回雷姆",(d,w)->main.postDelayed(this::maybeObserve,400)).create();
+            }).setNegativeButton("返回大肥鱼",(d,w)->main.postDelayed(this::maybeObserve,400)).create();
         maintenance.setOnDismissListener(d->{maintenanceOpen=false;updateButton();main.postDelayed(this::maybeObserve,400);});maintenance.show();
+    }
+    private void showAuthorActions(){
+        maintenanceOpen=true;stopHardware();
+        final String[] names={"自动表情","全部恢复","脸红","屑屑眼","＞＜","爱心眼","流泪","流冷汗","圈圈眼","黑脸","加载","抚胸手","竖食指","狗尾草","脱捕演出","兔牙","单片眼镜","黑框眼镜","钢盆","前倾","裙子切换","默认体型","体型1","体型2","脱鞋","尾巴开关","胸口衣服"};
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("表情与动作 · 本地预览")
+            .setItems(names,(d,which)->{character.chooseAuthorAction(names[which]);captionUntil=SystemClock.elapsedRealtime()+9000;caption.setText(names[which]);})
+            .setNegativeButton("返回",null).create();
+        dialog.setOnDismissListener(d->{maintenanceOpen=false;main.postDelayed(this::maybeObserve,8500);});dialog.show();
     }
     private void showPersonality(String value){
         maintenanceOpen=true;stopHardware();
@@ -199,6 +224,7 @@ public final class RemActivity extends Activity {
         out.println(prefix+(vision==null?lastVision:vision.diagnostics()));out.println(prefix+"eventCount="+eventCount+" lastEvent="+lastEvent);
         out.println(prefix+"eventCounts="+eventCounts);
         out.println(prefix+"RemVoice configured="+(voice!=null&&voice.configured())+" busy="+(voice!=null&&voice.busy())+" recording="+(voice!=null&&voice.recording()));
+        out.println(prefix+"RemTouch enabled="+touchEnabled+" count="+touchCount+" lastRegion="+lastTouch);
     }
 }
 
