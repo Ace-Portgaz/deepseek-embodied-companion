@@ -1,0 +1,8 @@
+{
+  "period": "day",
+  "date": "2000-01-01",
+  "characters": 0,
+  "seconds": 0,
+  "paused": false,
+  "limits": {"characters": 1000, "seconds": 600}
+}

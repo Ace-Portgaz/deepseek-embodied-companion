@@ -1,0 +1,18 @@
+diff --git a/arch/arm/boot/dts/qcom/sdm660-mtp-lavender-overlay.dts b/arch/arm/boot/dts/qcom/sdm660-mtp-lavender-overlay.dts
+index c7aa1d89..89065863 100644
+--- a/arch/arm/boot/dts/qcom/sdm660-mtp-lavender-overlay.dts
++++ b/arch/arm/boot/dts/qcom/sdm660-mtp-lavender-overlay.dts
+@@ -29,3 +29,13 @@
+ 			<0x0001001b 0x0102001a 0x0 0x0>;
+ };
+ 
++// Match the overlay action in the stock DTBO that boots on this device.
++// This kernel's dtc requires an explicit fragment for external references.
++/ {
++    fragment@0 {
++        target = <&slim_aud>;
++        __overlay__ {
++            status = "disabled";
++        };
++    };
++};

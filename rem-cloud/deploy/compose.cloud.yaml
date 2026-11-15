@@ -1,0 +1,36 @@
+services:
+  rem:
+    image: rem-companion:local
+    build:
+      context: ../build
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    stdin_open: true
+    environment:
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8003:8003"
+    secrets:
+      - rem_settings
+      - rem_credentials
+    volumes:
+      - rem_data:/opt/xiaozhi-esp32-server/data
+    tmpfs:
+      - /opt/xiaozhi-esp32-server/tmp:uid=10001,gid=10001,mode=0700,size=128m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    logging:
+      driver: local
+      options:
+        max-size: 2m
+        max-file: "2"
+secrets:
+  rem_settings:
+    file: ../runtime/settings.json
+  rem_credentials:
+    file: ../runtime/credentials.json
+volumes:
+  rem_data:

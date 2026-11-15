@@ -1,0 +1,31 @@
+# Inference and reference preparation only, based on official 20250606v2pro.
+# Training and Chinese ASR dependencies are not installed.
+# Gradio is imported by upstream audio helpers even for command-line inference.
+numpy
+scipy
+librosa==0.10.2
+numba
+pytorch-lightning==2.5.1
+gradio==4.44.1
+ffmpeg-python
+tqdm
+pyopenjtalk-plus==0.4.1.post10
+g2p_en
+cn2an
+pypinyin
+jieba
+sentencepiece
+transformers
+peft
+chardet
+PyYAML
+psutil
+split-lang
+fast_langdetect==0.3.2
+wordsegment
+rotary_embedding_torch==0.8.6
+x_transformers==1.42.11
+torchmetrics
+soundfile
+faster-whisper
+demucs==4.0.1

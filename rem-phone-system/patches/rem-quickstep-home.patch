@@ -1,0 +1,19 @@
+diff --git a/quickstep/AndroidManifest-launcher.xml b/quickstep/AndroidManifest-launcher.xml
+index 60afddb..a518843 100644
+--- a/quickstep/AndroidManifest-launcher.xml
++++ b/quickstep/AndroidManifest-launcher.xml
+@@ -54,13 +54,7 @@
+             android:resumeWhilePausing="true"
+             android:taskAffinity=""
+             android:enabled="true">
+-            <intent-filter>
+-                <action android:name="android.intent.action.MAIN" />
+-                <category android:name="android.intent.category.HOME" />
+-                <category android:name="android.intent.category.DEFAULT" />
+-                <category android:name="android.intent.category.MONKEY"/>
+-                <category android:name="android.intent.category.LAUNCHER_APP" />
+-            </intent-filter>
++            <!-- Rem product: HOME is provided by com.rem.body. -->
+             <meta-data
+                 android:name="com.android.launcher3.grid.control"
+                 android:value="${packageName}.grid_control" />

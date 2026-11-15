@@ -1,0 +1,31 @@
+android_app {
+    name: "RemBody",
+    srcs: ["src/**/*.java"],
+    manifest: "AndroidManifest.xml",
+    asset_dirs: ["assets"],
+    sdk_version: "current",
+    min_sdk_version: "29",
+    target_sdk_version: "30",
+    compile_multilib: "64",
+    static_libs: ["rem-vision-java"],
+    jni_libs: ["librem_mediapipe_tasks_jni"],
+    use_embedded_native_libs: true,
+    optimize: { enabled: false },
+}
+
+java_import {
+    name: "rem-vision-java",
+    jars: ["libs/*.jar"],
+    sdk_version: "current",
+}
+
+cc_prebuilt_library_shared {
+    name: "librem_mediapipe_tasks_jni",
+    stem: "libmediapipe_tasks_jni",
+    arch: { arm64: { srcs: ["libs/arm64-v8a/libmediapipe_tasks_jni.so"] } },
+    compile_multilib: "64",
+    sdk_version: "24",
+    stl: "none",
+    strip: { none: true },
+    shared_libs: ["libdl", "libjnigraphics", "libEGL", "libGLESv2", "libm", "libz", "liblog", "libandroid", "libc"],
+}

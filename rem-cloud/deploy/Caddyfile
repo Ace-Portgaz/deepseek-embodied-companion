@@ -1,0 +1,29 @@
+{
+    # No access logging: the device provisioning URL contains a secret.
+    log default {
+        level ERROR
+    }
+}
+
+{$PUBLIC_HOST} {
+    @setup {
+        method POST
+        path /setup/{$DEVICE_SETUP_SECRET}/xiaozhi/ota/
+        header Device-Id {$DEVICE_ID}
+    }
+    handle @setup {
+        rewrite * /xiaozhi/ota/
+        reverse_proxy rem:8003
+    }
+    @device {
+        path /xiaozhi/v1/
+        header Device-Id {$DEVICE_ID}
+    }
+    handle @device {
+        reverse_proxy rem:8000
+    }
+    handle /rem-phone/v1/* {
+        reverse_proxy rem:8003
+    }
+    respond 404
+}

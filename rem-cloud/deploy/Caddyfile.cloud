@@ -1,0 +1,37 @@
+{
+    default_sni {$PUBLIC_HOST}
+    log default {
+        # Reverse proxy errors can include the secret provisioning path.
+        output discard
+    }
+}
+
+https://{$PUBLIC_HOST} {
+    tls {
+        issuer acme {
+            dir https://acme-v02.api.letsencrypt.org/directory
+            profile shortlived
+            disable_tlsalpn_challenge
+        }
+    }
+    @setup {
+        method POST
+        path /setup/{$DEVICE_SETUP_SECRET}/xiaozhi/ota/
+        header Device-Id {$DEVICE_ID}
+    }
+    handle @setup {
+        rewrite * /xiaozhi/ota/
+        reverse_proxy 127.0.0.1:8003
+    }
+    @device {
+        path /xiaozhi/v1/
+        header Device-Id {$DEVICE_ID}
+    }
+    handle @device {
+        reverse_proxy 127.0.0.1:8000
+    }
+    handle /rem-phone/v1/* {
+        reverse_proxy 127.0.0.1:8003
+    }
+    respond 404
+}

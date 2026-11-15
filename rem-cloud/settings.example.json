@@ -1,0 +1,11 @@
+{
+  "public_host": "",
+  "device_id": "",
+  "deepseek_model": "deepseek-flash",
+  "asr_language": "ja-JP",
+  "asr_resource": "volc.seedasr.sauc.duration",
+  "tts_resource": "seed-tts-2.0",
+  "tts_speaker": "",
+  "speech_rate": -5,
+  "memory_enabled": true
+}

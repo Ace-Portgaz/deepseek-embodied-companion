@@ -1,0 +1,58 @@
+diff --git a/quickstep/src/com/android/quickstep/OverviewComponentObserver.java b/quickstep/src/com/android/quickstep/OverviewComponentObserver.java
+index 07f838b..cedb7b0 100644
+--- a/quickstep/src/com/android/quickstep/OverviewComponentObserver.java
++++ b/quickstep/src/com/android/quickstep/OverviewComponentObserver.java
+@@ -58,6 +58,7 @@ public final class OverviewComponentObserver {
+     private final Intent mCurrentHomeIntent;
+     private final Intent mMyHomeIntent;
+     private final Intent mFallbackIntent;
++    private final boolean mHasOwnHome;
+     private final SparseIntArray mConfigChangesMap = new SparseIntArray();
+ 
+     private Consumer<Boolean> mOverviewChangeListener = b -> { };
+@@ -78,10 +79,16 @@ public final class OverviewComponentObserver {
+                 .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+         mMyHomeIntent = new Intent(mCurrentHomeIntent).setPackage(mContext.getPackageName());
+         ResolveInfo info = context.getPackageManager().resolveActivity(mMyHomeIntent, 0);
+-        ComponentName myHomeComponent =
+-                new ComponentName(context.getPackageName(), info.activityInfo.name);
++        mHasOwnHome = info != null && info.activityInfo != null;
++        // A dedicated HOME product keeps Quickstep only for the separate recents UI.
++        // Its own HOME intent filter may therefore be absent.
++        ComponentName myHomeComponent = mHasOwnHome
++                ? new ComponentName(context.getPackageName(), info.activityInfo.name)
++                : new ComponentName(mContext, RecentsActivity.class);
+         mMyHomeIntent.setComponent(myHomeComponent);
+-        mConfigChangesMap.append(myHomeComponent.hashCode(), info.activityInfo.configChanges);
++        if (mHasOwnHome) {
++            mConfigChangesMap.append(myHomeComponent.hashCode(), info.activityInfo.configChanges);
++        }
+ 
+         ComponentName fallbackComponent = new ComponentName(mContext, RecentsActivity.class);
+         mFallbackIntent = new Intent(Intent.ACTION_MAIN)
+@@ -130,7 +137,8 @@ public final class OverviewComponentObserver {
+                 .getHomeActivities(new ArrayList<>());
+ 
+         mIsHomeDisabled = mDeviceState.isHomeDisabled();
+-        mIsDefaultHome = Objects.equals(mMyHomeIntent.getComponent(), defaultHome);
++        mIsDefaultHome = mHasOwnHome
++                && Objects.equals(mMyHomeIntent.getComponent(), defaultHome);
+ 
+         // Set assistant visibility to 0 from launcher's perspective, ensures any elements that
+         // launcher made invisible become visible again before the new activity control helper
+@@ -141,12 +149,13 @@ public final class OverviewComponentObserver {
+ 
+         if (SEPARATE_RECENTS_ACTIVITY.get()) {
+             mIsDefaultHome = false;
+-            if (defaultHome == null) {
++            if (defaultHome == null && mHasOwnHome) {
+                 defaultHome = mMyHomeIntent.getComponent();
+             }
+         }
+ 
+-        if (!mDeviceState.isHomeDisabled() && (defaultHome == null || mIsDefaultHome)) {
++        if (mHasOwnHome && !mDeviceState.isHomeDisabled()
++                && (defaultHome == null || mIsDefaultHome)) {
+             // User default home is same as out home app. Use Overview integrated in Launcher.
+             mActivityInterface = LauncherActivityInterface.INSTANCE;
+             mIsHomeAndOverviewSame = true;

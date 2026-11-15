@@ -1,0 +1,3 @@
+# Offline protocol/unit tests only; no neural model dependencies.
+aiohttp==3.14.5
+websockets==14.2

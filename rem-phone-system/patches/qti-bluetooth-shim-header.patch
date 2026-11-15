@@ -1,0 +1,13 @@
+diff --git a/stack/Android.bp b/stack/Android.bp
+index 3885904..d937e2a 100644
+--- a/stack/Android.bp
++++ b/stack/Android.bp
+@@ -52,6 +52,8 @@ cc_library_static {
+         "vendor/qcom/opensource/commonsys/system/bt/device/include",
+         "system/bt/embdrv/sbc/encoder/include",
+         "system/bt/embdrv/sbc/decoder/include",
++        // LE encryption backport uses PRIVATE_ADDRESS from main/shim/dumpsys.h.
++        "system/bt",
+     ],
+     srcs: crypto_toolbox_srcs + [
+         "a2dp/a2dp_aac.cc",

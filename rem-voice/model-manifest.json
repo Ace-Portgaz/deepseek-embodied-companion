@@ -1,0 +1,90 @@
+{
+  "repository": "lj1995/GPT-SoVITS",
+  "revision": "8f8857563c040d542de108a2c18b0425abd6c9c5",
+  "files": [
+    {
+      "type": "file",
+      "oid": "0bb839d4b0cd2ad41cb13c6500fd660800aaefdf",
+      "size": 1449,
+      "path": "chinese-hubert-base/config.json"
+    },
+    {
+      "type": "file",
+      "oid": "409547bbb99588f69a603019a707505610fa38d3",
+      "size": 212,
+      "path": "chinese-hubert-base/preprocessor_config.json"
+    },
+    {
+      "type": "file",
+      "oid": "a73dedefbc10383bc70e289fe0897d2157c6f66b",
+      "size": 188811417,
+      "lfs": {
+        "oid": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+        "size": 188811417,
+        "pointerSize": 134
+      },
+      "xetHash": "fb2028f4a31a17a464d12317f7ec7e5c551104da078fb2f6238ee87f460e8e82",
+      "path": "chinese-hubert-base/pytorch_model.bin"
+    },
+    {
+      "type": "file",
+      "oid": "3ae58d7f0734373bb28d3b6b9d6858b34f600b4a",
+      "size": 963,
+      "path": "chinese-roberta-wwm-ext-large/config.json"
+    },
+    {
+      "type": "file",
+      "oid": "9d67762821a81a27af2c60d8094ad86cad6510c3",
+      "size": 651225145,
+      "lfs": {
+        "oid": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+        "size": 651225145,
+        "pointerSize": 134
+      },
+      "xetHash": "cc347a6ac57fe7c9830f6be93e68423580acb87bfae382a4b53d9f9703f2cfc3",
+      "path": "chinese-roberta-wwm-ext-large/pytorch_model.bin"
+    },
+    {
+      "type": "file",
+      "oid": "9e77beb20869ea3b7850166fbc8cc7734662a017",
+      "size": 268962,
+      "path": "chinese-roberta-wwm-ext-large/tokenizer.json"
+    },
+    {
+      "type": "file",
+      "oid": "54a87a3557ca48356e31cf3651155a6dbb8a05da",
+      "size": 155284856,
+      "lfs": {
+        "oid": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+        "size": 155284856,
+        "pointerSize": 134
+      },
+      "xetHash": "8edd1fa84c2013c92786a8d606067b783cc5434ee3490df3c775f6975e4c4ddc",
+      "path": "s1v3.ckpt"
+    },
+    {
+      "type": "file",
+      "oid": "2b38a731b9e0930251f659a98d72805d5e8dc359",
+      "size": 107528697,
+      "lfs": {
+        "oid": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+        "size": 107528697,
+        "pointerSize": 134
+      },
+      "xetHash": "dec2e604a10951a7fc487a03cc4755175bf2b5b2e4247abcc5b1d1c26aeed35a",
+      "path": "sv/pretrained_eres2netv2w24s4ep4.ckpt"
+    },
+    {
+      "type": "file",
+      "oid": "9af33d4362819ca66e37ebb029eca5d479700555",
+      "size": 200125741,
+      "lfs": {
+        "oid": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+        "size": 200125741,
+        "pointerSize": 134
+      },
+      "xetHash": "86af542b6709bbc00031351c1151cb04be7a5b2fb2401cf8862ce8149ba0cc22",
+      "path": "v2Pro/s2Gv2ProPlus.pth"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Add to .repo/local_manifests only after inspecting the initialized manifest
+     for duplicate paths. This pins board sources, not the entire ROM tree. -->
+<manifest>
+  <remote name="rem-lineage" fetch="https://github.com/" />
+  <project name="LineageOS/android_device_xiaomi_lavender"
+      path="device/xiaomi/lavender" remote="rem-lineage"
+      revision="8d0e035cb03683baba0a54b86f5c8977890721c4" />
+  <project name="LineageOS/android_device_xiaomi_sdm660-common"
+      path="device/xiaomi/sdm660-common" remote="rem-lineage"
+      revision="985b95d82172bc2b363ee3beec97669a2eba2a8b" />
+  <project name="LineageOS/android_kernel_xiaomi_sdm660"
+      path="kernel/xiaomi/sdm660" remote="rem-lineage"
+      revision="2e69f2ae550dcfbde1ffb6daa11492762b122191" />
+  <project name="LineageOS/android_hardware_xiaomi"
+      path="hardware/xiaomi" remote="rem-lineage"
+      revision="a1633051c96997aea4c00dbdef7c734b1d4f8a9d" />
+</manifest>
